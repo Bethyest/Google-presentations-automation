@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      color: #333;
+      background: #f8f8f8;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 6px;
+      padding: 10px 10px 6px;
+      border-bottom: 1px solid #ddd;
+      background: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 6px 4px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .btn-save   { background: #4CAF50; color: #fff; }
+    .btn-reset  { background: #f0f0f0; color: #555; }
+    .btn-save:hover  { background: #43a047; }
+    .btn-reset:hover { background: #e0e0e0; }
+
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 10px;
+      right: 10px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s, transform 0.3s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #toast.ok  { background: #2e7d32; color: #fff; }
+    #toast.err { background: #c62828; color: #fff; }
+    #toast.info { background: #1565c0; color: #fff; }
+
+    .btn-saving {
+      position: relative;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+    .btn-saving::after {
+      content: " ⏳";
+      animation: pulse 0.8s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #loading {
+      padding: 20px 10px;
+      color: #888;
+      text-align: center;
+    }
+
+    .col-block {
+      background: #fff;
+      border-bottom: 2px solid #e0e0e0;
+      padding: 10px;
+    }
+
+    .col-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .col-title {
+      font-weight: bold;
+      font-size: 12px;
+      color: #1a237e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+
+    .col-num {
+      font-size: 10px;
+      color: #888;
+      background: #f0f0f0;
+      border-radius: 10px;
+      padding: 1px 7px;
+      flex-shrink: 0;
+    }
+
+    .toggle-icon {
+      font-size: 10px;
+      color: #aaa;
+      flex-shrink: 0;
+    }
+
+    .col-body { padding-top: 8px; }
+    .col-body.collapsed { display: none; }
+
+    .samples {
+      font-size: 10px;
+      color: #777;
+      background: #f5f5f5;
+      border-radius: 3px;
+      padding: 4px 6px;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .samples span {
+      display: inline-block;
+      background: #e8eaf6;
+      border-radius: 2px;
+      padding: 0 4px;
+      margin: 1px 2px 1px 0;
+      color: #3949ab;
+    }
+
+    .merge-group {
+      margin-bottom: 8px;
+    }
+
+    .merge-label {
+      font-size: 10px;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .radio-row {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .radio-btn {
+      flex: 1;
+      min-width: 50px;
+      text-align: center;
+      padding: 4px 2px;
+      border: 1.5px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      color: #555;
+      background: #fafafa;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .radio-btn:hover { border-color: #7986cb; color: #3949ab; background: #f3f4ff; }
+    .radio-btn.active {
+      border-color: #3f51b5;
+      background: #e8eaf6;
+      color: #1a237e;
+      font-weight: bold;
+    }
+
+    .exceptions-section { margin-top: 8px; }
+    .exceptions-label {
+      font-size: 10px;
+      font-weight: bold;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
+    }
+
+    .exception-tag {
+      display: inline-flex;
+      align-items: center;
+      background: #fff3e0;
+      border: 1px solid #ffb74d;
+      border-radius: 12px;
+      padding: 2px 6px 2px 8px;
+      margin: 2px 2px 2px 0;
+      font-size: 10px;
+      color: #e65100;
+    }
+    .exception-tag .del {
+      margin-left: 4px;
+      cursor: pointer;
+      color: #ef6c00;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .exception-tag .del:hover { color: #b71c1c; }
+
+    .add-exception {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .add-exception input {
+      flex: 1;
+      padding: 3px 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .add-exception button {
+      padding: 3px 8px;
+      background: #ff9800;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .add-exception button:hover { background: #f57c00; }
+
+    .type-selector {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .type-btn {
+      flex: 1;
+      padding: 3px;
+      border: 1.5px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      color: #555;
+      background: #fafafa;
+      text-align: center;
+    }
+    .type-btn.active {
+      border-color: #3f51b5;
+      background: #e8eaf6;
+      color: #1a237e;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="btn btn-save" id="saveBtn" onclick="saveAll()">💾 Применить</button>
+  <button class="btn btn-reset" onclick="resetAll()">🔄 По умолчанию</button>
+</div>
+
+<div id="loading">⏳ Загрузка...</div>
+<div id="columns"></div>
+
+<div id="toast"></div>
+
+<script>
+  var state = {};   // { colIndex: { type, mergeText, mergeNumbers, texts[] } }
+  var data  = null;
+  var toastTimer = null;
+
+  var DIRS = [
+    { val: "both",       label: "↔↕ Оба"      },
+    { val: "horizontal", label: "↔ Горизонт."  },
+    { val: "vertical",   label: "↕ Вертик."    },
+    { val: "none",       label: "✗ Нет"        }
+  ];
+
+  google.script.run
+    .withSuccessHandler(init)
+    .withFailureHandler(function(e) { showToast("❌ " + e.message, "err"); })
+    .getSidebarData();
+
+  function init(d) {
+    data = d;
+    document.getElementById("loading").style.display = "none";
+
+    for (var col = 0; col < d.colsCount; col++) {
+      var saved = d.rules && d.rules[col];
+      var def   = d.defaults && d.defaults[col];
+      var base  = saved || def || {};
+      state[col] = {
+        type:         base.type         || "all",
+        mergeText:    base.mergeText    || "both",
+        mergeNumbers: base.mergeNumbers || "vertical",
+        texts:        (base.texts || []).slice()
+      };
+    }
+
+    renderColumns();
+  }
+
+  function renderColumns() {
+    var wrap = document.getElementById("columns");
+    wrap.innerHTML = "";
+
+    for (var col = 0; col < data.colsCount; col++) {
+      wrap.appendChild(makeColBlock(col));
+    }
+  }
+
+  function makeColBlock(col) {
+    var s       = state[col];
+    var header  = data.headers[col] || ("Столбец " + (col + 1));
+    var samples = data.samples[col] || [];
+
+    var block = document.createElement("div");
+    block.className = "col-block";
+    block.id = "block-" + col;
+
+    var hdr = document.createElement("div");
+    hdr.className = "col-header";
+    hdr.innerHTML =
+      '<span class="col-title" title="' + esc(header) + '">' + esc(header) + '</span>' +
+      '<span class="col-num">' + (col + 1) + '</span>' +
+      '<span class="toggle-icon" id="toggle-' + col + '">▲</span>';
+    hdr.onclick = (function(c) {
+      return function() { toggleBlock(c); };
+    })(col);
+    block.appendChild(hdr);
+
+    var body = document.createElement("div");
+    body.className = "col-body";
+    body.id = "body-" + col;
+
+    if (samples.length > 0) {
+      var sampDiv = document.createElement("div");
+      sampDiv.className = "samples";
+      samples.forEach(function(sv) {
+        sampDiv.innerHTML += '<span>' + esc(sv) + '</span>';
+      });
+      body.appendChild(sampDiv);
+    }
+
+    var typeDiv = document.createElement("div");
+    typeDiv.className = "merge-group";
+    typeDiv.innerHTML = '<div class="merge-label">Режим</div>';
+    var typeSel = document.createElement("div");
+    typeSel.className = "type-selector";
+    [
+      { val: "all",    label: "Все" },
+      { val: "except", label: "Кроме..." },
+      { val: "none",   label: "Откл." }
+    ].forEach(function(t) {
+      var btn = document.createElement("div");
+      btn.className = "type-btn" + (s.type === t.val ? " active" : "");
+      btn.textContent = t.label;
+      btn.dataset.val = t.val;
+      btn.onclick = (function(c, v) {
+        return function() { setState(c, "type", v); rerender(c); };
+      })(col, t.val);
+      typeSel.appendChild(btn);
+    });
+    typeDiv.appendChild(typeSel);
+    body.appendChild(typeDiv);
+
+    if (s.type !== "none") {
+      body.appendChild(makeDirGroup(col, "mergeText", "📝 Текст"));
+      body.appendChild(makeDirGroup(col, "mergeNumbers", "🔢 Числа"));
+
+      if (s.type === "except") {
+        body.appendChild(makeExceptions(col));
+      }
+    }
+
+    block.appendChild(body);
+    return block;
+  }
+
+  function makeDirGroup(col, field, labelText) {
+    var s   = state[col];
+    var div = document.createElement("div");
+    div.className = "merge-group";
+    div.innerHTML = '<div class="merge-label">' + labelText + '</div>';
+
+    var row = document.createElement("div");
+    row.className = "radio-row";
+
+    DIRS.forEach(function(d) {
+      var btn = document.createElement("div");
+      btn.className = "radio-btn" + (s[field] === d.val ? " active" : "");
+      btn.textContent = d.label;
+      btn.onclick = (function(c, f, v) {
+        return function() { setState(c, f, v); rerender(c); };
+      })(col, field, d.val);
+      row.appendChild(btn);
+    });
+
+    div.appendChild(row);
+    return div;
+  }
+
+  function makeExceptions(col) {
+    var s   = state[col];
+    var div = document.createElement("div");
+    div.className = "exceptions-section";
+
+    var lbl = document.createElement("div");
+    lbl.className = "exceptions-label";
+    lbl.textContent = "⚠️ Исключения (не объединять)";
+    div.appendChild(lbl);
+
+    var tagsDiv = document.createElement("div");
+    tagsDiv.id = "tags-" + col;
+    (s.texts || []).forEach(function(txt) {
+      tagsDiv.appendChild(makeTag(col, txt));
+    });
+    div.appendChild(tagsDiv);
+
+    var addRow = document.createElement("div");
+    addRow.className = "add-exception";
+    var inp = document.createElement("input");
+    inp.type = "text";
+    inp.placeholder = "Добавить исключение...";
+    inp.id = "exc-input-" + col;
+    var addBtn = document.createElement("button");
+    addBtn.textContent = "+ Добавить";
+    addBtn.onclick = (function(c) {
+      return function() { addException(c); };
+    })(col);
+    inp.onkeydown = (function(c) {
+      return function(e) { if (e.key === "Enter") addException(c); };
+    })(col);
+    addRow.appendChild(inp);
+    addRow.appendChild(addBtn);
+    div.appendChild(addRow);
+
+    return div;
+  }
+
+  function makeTag(col, txt) {
+    var tag = document.createElement("span");
+    tag.className = "exception-tag";
+    tag.innerHTML = esc(txt) + '<span class="del" title="Удалить">×</span>';
+    tag.querySelector(".del").onclick = (function(c, t) {
+      return function(e) { e.stopPropagation(); removeException(c, t); };
+    })(col, txt);
+    return tag;
+  }
+
+  function addException(col) {
+    var inp = document.getElementById("exc-input-" + col);
+    var val = inp.value.trim();
+    if (!val) return;
+    if (state[col].texts.indexOf(val) === -1) {
+      state[col].texts.push(val);
+      document.getElementById("tags-" + col).appendChild(makeTag(col, val));
+    }
+    inp.value = "";
+  }
+
+  function removeException(col, txt) {
+    state[col].texts = state[col].texts.filter(function(t) { return t !== txt; });
+    rerender(col);
+  }
+
+  function setState(col, field, val) {
+    state[col][field] = val;
+  }
+
+  function rerender(col) {
+    var old = document.getElementById("block-" + col);
+    var newBlock = makeColBlock(col);
+    old.parentNode.replaceChild(newBlock, old);
+  }
+
+  function toggleBlock(col) {
+    var body   = document.getElementById("body-" + col);
+    var icon   = document.getElementById("toggle-" + col);
+    var hidden = body.classList.toggle("collapsed");
+    icon.textContent = hidden ? "▼" : "▲";
+  }
+
+
+  function saveAll() {
+    var btn = document.getElementById("saveBtn");
+    btn.classList.add("btn-saving");
+    btn.textContent = "⏳ Сохраняю...";
+
+    google.script.run
+      .withSuccessHandler(function() {
+        btn.classList.remove("btn-saving");
+        btn.textContent = "💾 Применить";
+        showToast("✅ Настройки сохранены!", "ok");
+      })
+      .withFailureHandler(function(e) {
+        btn.classList.remove("btn-saving");
+        btn.textContent = "💾 Применить";
+        showToast("❌ Ошибка: " + e.message, "err");
+      })
+      .applyMergeRules(state);
+  }
+
+  function resetAll() {
+    if (!confirm("Сбросить все настройки к значениям по умолчанию?")) return;
+
+    var btn = document.querySelector(".btn-reset");
+    btn.textContent = "⏳ Сбрасываю...";
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function() {
+        showToast("🔄 Настройки сброшены. Перезагружаю...", "info");
+        setTimeout(function() {
+          google.script.run
+            .withSuccessHandler(function(d) {
+              btn.textContent = "🔄 По умолчанию";
+              btn.disabled = false;
+              init(d);
+              showToast("✅ Загружены настройки по умолчанию", "ok");
+            })
+            .withFailureHandler(function(e) {
+              btn.textContent = "🔄 По умолчанию";
+              btn.disabled = false;
+              showToast("❌ " + e.message, "err");
+            })
+            .getSidebarData();
+        }, 500);
+      })
+      .withFailureHandler(function(e) {
+        btn.textContent = "🔄 По умолчанию";
+        btn.disabled = false;
+        showToast("❌ " + e.message, "err");
+      })
+      .resetMergeRules();
+  }
+
+
+  function showToast(msg, type) {
+    var toast = document.getElementById("toast");
+    
+    if (toastTimer) clearTimeout(toastTimer);
+    
+    toast.textContent = msg;
+    toast.className = type || "info";
+    
+    requestAnimationFrame(function() {
+      toast.classList.add("show");
+    });
+    
+    toastTimer = setTimeout(function() {
+      toast.classList.remove("show");
+      toastTimer = null;
+    }, 3000);
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+</script>
+</body>
+</html>
